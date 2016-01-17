@@ -3,3 +3,44 @@ Github urls look like:
 https://github.com/$user/$repo/blob/$commit/$path
 
 A fun & interesting fact is that $commit can contain slashes. 
+
+So how do you deal with the possible ambiguities? First, it looks like git does not allow you to have commit IDs (like branches or tags) that are both root and leaf paths:
+
+    ~/src/github-url-parsing$ git checkout -b release
+    Switched to a new branch 'release'
+    ~/src/github-url-parsing$ git checkout -b release/README
+    error: unable to resolve reference refs/heads/release/README: Not a directory
+    fatal: Failed to lock ref for update: Not a directory
+
+    ~/src/github-url-parsing$ git checkout -b test/1.5 
+    Switched to a new branch 'test/1.5'
+    ~/src/github-url-parsing$ git checkout -b test
+    error: there are still refs under 'refs/heads/test'
+    fatal: Failed to lock ref for update: Is a directory
+
+which means you can't have both release/README (branch + path) and release/README (branch). The same holds true for tags:
+
+    ~/src/github-url-parsing$ git tag foo
+    ~/src/github-url-parsing$ git tag foo/bar
+    error: unable to resolve reference refs/tags/foo/bar: Not a directory
+    fatal: refs/tags/foo/bar: cannot lock the ref
+    ~/src/github-url-parsing$ git tag bar/baz
+    ~/src/github-url-parsing$ git tag bar
+    error: there are still refs under 'refs/tags/bar'
+    fatal: refs/tags/bar: cannot lock the ref
+
+this appears to be reliably enforced by github, even though they use a non-standard git implementation:
+
+    ~/src/gup2$ git tag root/branch
+    ~/src/gup2$ git push origin root/branch
+    Total 0 (delta 0), reused 0 (delta 0)
+    To git@krakensden.github.com:krakensden/github-url-parsing.git
+     * [new tag]         root/branch -> root/branch
+
+    ~/src/github-url-parsing$ git tag root
+    ~/src/github-url-parsing$ git push origin root
+    Total 0 (delta 0), reused 0 (delta 0)
+    To git@krakensden.github.com:krakensden/github-url-parsing.git
+     ! [remote rejected] root -> root (cannot lock ref 'refs/tags/root': 'refs/tags/root/branch' exists; cannot create 'refs/tags/root')
+     error: failed to push some refs to 'git@krakensden.github.com:krakensden/github-url-parsing.git'
+
