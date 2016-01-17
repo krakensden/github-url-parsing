@@ -1,0 +1,5 @@
+Github urls look like:
+
+https://github.com/$user/$repo/blob/$commit/$path
+
+A fun & interesting fact is that $commit can contain slashes. 
